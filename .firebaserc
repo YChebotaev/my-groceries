@@ -1,5 +1,6 @@
 {
   "projects": {
-    "my-groceries": "my-products-2"
+    "my-groceries": "my-products-2",
+    "default": "my-products-2"
   }
 }
