@@ -1,7 +1,10 @@
+import { useHistory, useParams } from "react-router-dom";
+
 import CircularProgress from "@material-ui/core/CircularProgress";
 import { FC } from "react";
 import { FirebaseDatabaseNode } from "@react-firebase/database";
 import List from "@material-ui/core/List";
+import { ListDetailsParams } from "../types.d";
 import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
 import ListSubheader from "@material-ui/core/ListSubheader";
@@ -9,13 +12,13 @@ import firebase from "firebase/app";
 import { toggleDrawerEvent } from "../effector/drawer";
 import { useCredential } from "../hooks/useCredential";
 import { useEvent } from "effector-react";
-import { useHistory } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 export const SharedListsList: FC<{}> = () => {
   const { sub } = useCredential() || {};
   const { t } = useTranslation();
   const history = useHistory();
+  const params: ListDetailsParams = useParams();
   const toggleDrawer = useEvent(toggleDrawerEvent);
 
   const createHandleNavigate = (listPin: string) => async () => {
@@ -40,7 +43,11 @@ export const SharedListsList: FC<{}> = () => {
                 if (!value) return null;
 
                 return (
-                  <ListItem button onClick={createHandleNavigate(listPin)}>
+                  <ListItem
+                    button
+                    disabled={params.listPin === listPin}
+                    onClick={createHandleNavigate(listPin)}
+                  >
                     <ListItemText>
                       {value} ({listPin})
                     </ListItemText>
