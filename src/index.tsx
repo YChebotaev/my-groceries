@@ -4,9 +4,9 @@ import "firebase/auth";
 
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 
-import { FC, StrictMode } from "react";
+import { FC, StrictMode, useEffect } from "react";
 import { GoogleOneTapCredential, GoogleOneTapResponse } from "./types.d";
-import { Redirect, Route, Switch } from "react-router";
+import { Route, Switch } from "react-router";
 
 import { AddProduct } from "./modals/AddProduct";
 import { BrowserRouter } from "react-router-dom";
@@ -25,6 +25,7 @@ import { initReactI18next } from "react-i18next";
 import jwtDecode from "jwt-decode";
 import reportWebVitals from "./reportWebVitals";
 import { theme } from "./theme";
+import { useCredential } from "./hooks/useCredential";
 
 i18next.use(initReactI18next);
 i18next.init({
@@ -80,6 +81,29 @@ firebase.initializeApp({
 });
 
 const Root: FC<{}> = () => {
+  const { sub } = useCredential() || {};
+
+  useEffect(() => {
+    firebase
+      .database()
+      .ref(`users/${sub}/active_list`)
+      .get()
+      .then((snapshot) => {
+        if (snapshot.exists()) {
+          const listPin = snapshot.val();
+          const nextPathname = `/list/${listPin}`;
+          if (window.location.pathname !== nextPathname) {
+            window.location.pathname = nextPathname;
+          }
+        } else {
+          const nextPathname = `/getting-started`;
+          if (window.location.pathname !== nextPathname) {
+            window.location.pathname = nextPathname;
+          }
+        }
+      });
+  }, [sub]);
+
   return (
     <StrictMode>
       <FirebaseDatabaseProvider firebase={firebase}>
@@ -87,7 +111,6 @@ const Root: FC<{}> = () => {
           <CssBaseline />
           <BrowserRouter>
             <Switch>
-              <Redirect exact from="/" to="/getting-started" />
               <Route exact path="/getting-started" component={GettingStarted} />
               <Route exact path="/list/:listPin" component={ListDetails} />
             </Switch>
