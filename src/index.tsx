@@ -1,5 +1,6 @@
 /* global google:readonly  */
 import "firebase/database";
+import "firebase/auth";
 
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 
@@ -65,6 +66,9 @@ i18next.init({
   },
 });
 
+// @ts-expect-error TS2741
+window.firebase = firebase;
+
 firebase.initializeApp({
   apiKey: process.env.REACT_APP_API_KEY,
   authDomain: process.env.REACT_APP_AUTH_DOMAIN,
@@ -106,14 +110,20 @@ const isCredentialExpired = (expiresAt: Date): [boolean, number] => {
   return [expiresAt.getTime() < Date.now(), expiresAt.getTime() - Date.now()];
 };
 
-const handleGoogleOneTapResult = ({ credential }: GoogleOneTapResponse) => {
+const handleGoogleOneTapResult = async ({
+  credential,
+}: GoogleOneTapResponse) => {
   localStorage.setItem("credential", credential);
   const decodedCredential: GoogleOneTapCredential = jwtDecode(credential);
   localStorage.setItem(
     "credential_expires_at",
     getExpDate(decodedCredential.exp).toISOString()
   );
-  console.log(decodedCredential);
+  await firebase
+    .auth()
+    .signInWithCredential(
+      firebase.auth.GoogleAuthProvider.credential(credential)
+    );
   ReactDOM.render(<Root />, document.getElementById("root"));
 };
 
@@ -141,7 +151,16 @@ if (localStorage.getItem("credential")) {
     promptGoogleOneTap();
   } else {
     setTimeout(promptGoogleOneTap, timeToExpire);
-    ReactDOM.render(<Root />, document.getElementById("root"));
+    firebase
+      .auth()
+      .signInWithCredential(
+        firebase.auth.GoogleAuthProvider.credential(
+          localStorage.getItem("credential")
+        )
+      )
+      .then(() => {
+        ReactDOM.render(<Root />, document.getElementById("root"));
+      });
   }
 } else {
   promptGoogleOneTap();
