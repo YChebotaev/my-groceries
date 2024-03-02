@@ -37,10 +37,6 @@ export const createService = async () => {
     }
   })
 
-  io.on('connection', (socket) => {
-    console.log('socket =', socket)
-  })
-
   // #endregion
 
   app.register(fastifyCors, { origin: true })
