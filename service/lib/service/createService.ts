@@ -145,8 +145,8 @@ export const createService = async () => {
     const result = await joinToListByPin(userId, code)
     const { listId } = result
 
-    for (const socket of io.of(`user-${userId}`).sockets) {
-      socket.join(`list-${listId}`)
+    for (const socket of io.of(`user-${userId}`).sockets.values()) {
+      await socket.join(`list-${listId}`)
     }
 
     return result
@@ -162,8 +162,8 @@ export const createService = async () => {
       throw new Error('Cannot get just created list')
     }
 
-    for (const socket of io.of(`user-${userId}`).sockets) {
-      socket.join(`list-${list.id}`)
+    for (const socket of io.of(`user-${userId}`).sockets.values()) {
+      await socket.join(`list-${list.id}`)
     }
 
     return list
