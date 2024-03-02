@@ -2,7 +2,7 @@ import fastify from 'fastify'
 import fastifyCors from '@fastify/cors'
 import fastifySwagger from '@fastify/swagger'
 import fastifySwaggerUI from '@fastify/swagger-ui'
-import { Server as SocketIOServer } from 'socket.io'
+import { type Socket, Server as SocketIOServer } from 'socket.io'
 import { logger } from '../logger'
 import {
   addGrocery,
@@ -24,6 +24,7 @@ import {
   renameGrocery,
   renameList
 } from './handlers'
+import { userSessionsFind } from '@my-groceries/persistence'
 
 export const createService = async () => {
   const app = fastify({ logger })
@@ -34,6 +35,52 @@ export const createService = async () => {
     serveClient: false,
     cors: {
       origin: '*'
+    }
+  })
+
+  const userIdToSocketMap: Record<number, Socket> = {}
+
+  io.on('connection', async (socket) => {
+    try {
+      const { token } = socket.handshake.auth as { token: string }
+
+      if (!token) {
+        socket.disconnect(true)
+
+        throw new Error('Token not provided in socket auth')
+      }
+
+      const [userSession] = await userSessionsFind({ token })
+
+      if (!userSession) {
+        socket.disconnect(true)
+
+        throw new Error('Cannot find user session by token in socket auth')
+      }
+
+      await socket.join(`user-${userSession.userId}`)
+
+      const lists = await getMyLists(userSession.userId)
+
+      for (const list of lists) {
+        await socket.join(`list-${list.id}`)
+      }
+
+      socket.on('disconnect', async () => {
+        try {
+          await socket.leave(`user-${userSession.userId}`)
+
+          const lists = await getMyLists(userSession.userId)
+
+          for (const list of lists) {
+            await socket.leave(`list-${list.id}`)
+          }
+        } catch (e) {
+          logger.error(e)
+        }
+      })
+    } catch (e) {
+      logger.error(e)
     }
   })
 
@@ -95,14 +142,31 @@ export const createService = async () => {
     const { sub } = authorizationGuard(headers)
     const userId = asNumberGuard(sub)
 
-    return joinToListByPin(userId, code)
+    const result = await joinToListByPin(userId, code)
+    const { listId } = result
+
+    for (const socket of io.of(`user-${userId}`).sockets) {
+      socket.join(`list-${listId}`)
+    }
+
+    return result
   })
 
   app.post('/lists', async ({ headers }) => {
     const { sub } = authorizationGuard(headers)
     const userId = asNumberGuard(sub)
 
-    return createList(userId)
+    const list = await createList(userId)
+
+    if (!list) {
+      throw new Error('Cannot get just created list')
+    }
+
+    for (const socket of io.of(`user-${userId}`).sockets) {
+      socket.join(`list-${list.id}`)
+    }
+
+    return list
   })
 
   app.get<{

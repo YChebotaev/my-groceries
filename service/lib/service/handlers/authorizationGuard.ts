@@ -1,10 +1,7 @@
-import { IncomingHttpHeaders } from 'node:http'
 import jwt from 'jsonwebtoken'
 
-export const authorizationGuard = (headers: IncomingHttpHeaders) => {
+export const authorizationGuard = (headers: { authorization?: string }) => {
   const token = headers.authorization?.slice(7) ?? null
-
-  console.log('token =', token)
 
   const jwtSecret = process.env['JWT_SECRET']
 
