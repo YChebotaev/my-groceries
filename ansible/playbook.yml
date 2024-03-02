@@ -148,14 +148,14 @@
     - name: Copy app .env
       ansible.builtin.template:
         src: templates/app.env.j2
-        dest: "{{project_dir}}/console/.env"
+        dest: "{{project_dir}}/app/.env"
     - name: Copy servie .env
       ansible.builtin.template:
         src: templates/service.env.j2
         dest: "{{project_dir}}/service/.env"
     - name: build app
       ansible.builtin.shell:
-        cmd: npm run build
+        cmd: "npm run build"
         chdir: "{{project_dir}}/app"
         creates: "{{project_dir}}/app/dist/index.html"
     # Database migrations
@@ -168,11 +168,9 @@
       ansible.builtin.shell:
         cmd: pm2 start npm --name service -- start
         chdir: "{{project_dir}}/service"
-    - name: Build app
-        cmd: npm run build
-        chdir: "{{project_dir}}/app"
     - name: Build landing
-        cmd: npm run build
+      ansible.builtin.shell:
+        cmd: "npm run build"
         chdir: "{{project_dir}}/landing"
     - name: Start landing
       ansible.builtin.shell:
