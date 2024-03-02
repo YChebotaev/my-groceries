@@ -38,8 +38,6 @@ export const createService = async () => {
     }
   })
 
-  const userIdToSocketMap: Record<number, Socket> = {}
-
   io.on('connection', async (socket) => {
     try {
       const { token } = socket.handshake.auth as { token: string }
