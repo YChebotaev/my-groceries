@@ -2,7 +2,7 @@ import fastify from 'fastify'
 import fastifyCors from '@fastify/cors'
 import fastifySwagger from '@fastify/swagger'
 import fastifySwaggerUI from '@fastify/swagger-ui'
-import { type Socket, Server as SocketIOServer } from 'socket.io'
+import { Server as SocketIOServer } from 'socket.io'
 import { logger } from '../logger'
 import {
   addGrocery,
