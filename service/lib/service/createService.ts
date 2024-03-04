@@ -194,8 +194,11 @@ export const createService = async () => {
 
     await listAccessGuard(userId, listId)
 
-    for (const socket of io.of(`user-${userId}`).sockets.values()) {
-      await socket.join(`list-${listId}`)
+    const sockets = [...(io.sockets.adapter.rooms.get(`user-${userId}`)?.values() ?? [])]
+      .map(socketId => io.sockets.sockets.get(socketId))
+
+    for (const socket of sockets) {
+      await socket?.join(`list-${listId}`)
     }
   })
 
@@ -207,8 +210,11 @@ export const createService = async () => {
 
     await listAccessGuard(userId, listId)
 
-    for (const socket of io.of(`user-${userId}`).sockets.values()) {
-      await socket.leave(`list-${listId}`)
+    const sockets = [...(io.sockets.adapter.rooms.get(`user-${userId}`)?.values() ?? [])]
+      .map(socketId => io.sockets.sockets.get(socketId))
+
+    for (const socket of sockets) {
+      await socket?.leave(`list-${listId}`)
     }
   })
 
