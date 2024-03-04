@@ -13,12 +13,15 @@ import { GrocerySwitch } from "../components/GrocerySwitch";
 import { Edit } from "@mui/icons-material";
 import { useListGroceries } from "../hooks/useListGroceries";
 import { useList } from "../hooks/useList";
+import { useSubscribeToListUpdates } from "../hooks/useSubscribeToListUpdates";
 
 export const GroceriesPage: FC = () => {
   const navigate = useNavigate();
   const { listId } = useParams() as { listId: string };
   const { data: list } = useList(listId);
   const { data: groceries } = useListGroceries(listId);
+
+  useSubscribeToListUpdates(listId)
 
   return (
     <AppLayout

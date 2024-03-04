@@ -13,6 +13,7 @@ import { ListTabs } from "../components/ListTabs";
 import { ShortageSwitch } from "../components/ShortageSwitch";
 import { useListShortages } from "../hooks/useListShortages";
 import { useList } from "../hooks/useList";
+import { useSubscribeToListUpdates } from "../hooks/useSubscribeToListUpdates";
 
 export const ShortagesPage: FC = () => {
   const { listId } = useParams() as { listId: string };
@@ -45,6 +46,8 @@ export const ShortagesPage: FC = () => {
       return null;
     }
   }, [shortages, listId]);
+
+  useSubscribeToListUpdates(listId)
 
   return (
     <AppLayout

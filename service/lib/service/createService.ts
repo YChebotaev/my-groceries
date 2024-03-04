@@ -22,7 +22,8 @@ import {
   joinToListByPin,
   listAccessGuard,
   renameGrocery,
-  renameList
+  renameList,
+  userIdFromTokenGuard,
 } from './handlers'
 import { userSessionsFind } from '@my-groceries/persistence'
 
@@ -55,28 +56,6 @@ export const createService = async () => {
 
         throw new Error('Cannot find user session by token in socket auth')
       }
-
-      await socket.join(`user-${userSession.userId}`)
-
-      const lists = await getMyLists(userSession.userId)
-
-      for (const list of lists) {
-        await socket.join(`list-${list.id}`)
-      }
-
-      socket.on('disconnect', async () => {
-        try {
-          await socket.leave(`user-${userSession.userId}`)
-
-          const lists = await getMyLists(userSession.userId)
-
-          for (const list of lists) {
-            await socket.leave(`list-${list.id}`)
-          }
-        } catch (e) {
-          logger.error(e)
-        }
-      })
     } catch (e) {
       logger.error(e)
     }
@@ -106,8 +85,7 @@ export const createService = async () => {
   })
 
   app.get('/my/lists', async ({ headers }) => {
-    const { sub } = authorizationGuard(headers)
-    const userId = asNumberGuard(sub)
+    const userId = userIdFromTokenGuard(headers)
 
     return getMyLists(userId)
   })
@@ -140,38 +118,20 @@ export const createService = async () => {
     const { sub } = authorizationGuard(headers)
     const userId = asNumberGuard(sub)
 
-    const result = await joinToListByPin(userId, code)
-    const { listId } = result
-
-    for (const socket of io.of(`user-${userId}`).sockets.values()) {
-      await socket.join(`list-${listId}`)
-    }
-
-    return result
+    return joinToListByPin(userId, code)
   })
 
   app.post('/lists', async ({ headers }) => {
     const { sub } = authorizationGuard(headers)
     const userId = asNumberGuard(sub)
 
-    const list = await createList(userId)
-
-    if (!list) {
-      throw new Error('Cannot get just created list')
-    }
-
-    for (const socket of io.of(`user-${userId}`).sockets.values()) {
-      await socket.join(`list-${list.id}`)
-    }
-
-    return list
+    return createList(userId)
   })
 
   app.get<{
     Params: { listId: string },
   }>('/lists/:listId', async ({ headers, params: { listId: listIdStr } }) => {
-    const { sub } = authorizationGuard(headers)
-    const userId = asNumberGuard(sub)
+    const userId = userIdFromTokenGuard(headers)
     const listId = asNumberGuard(listIdStr)
 
     await listAccessGuard(userId, listId)
@@ -195,8 +155,7 @@ export const createService = async () => {
       }
     }
   }, async ({ headers, params: { listId: listIdStr }, body: { name } }) => {
-    const { sub } = authorizationGuard(headers)
-    const userId = asNumberGuard(sub)
+    const userId = userIdFromTokenGuard(headers)
     const listId = asNumberGuard(listIdStr)
 
     await listAccessGuard(userId, listId)
@@ -209,13 +168,38 @@ export const createService = async () => {
   app.get<{
     Params: { listId: string }
   }>('/lists/:listId/groceries', async ({ headers, params: { listId: listIdStr } }) => {
-    const { sub } = authorizationGuard(headers)
-    const userId = asNumberGuard(sub)
+    const userId = userIdFromTokenGuard(headers)
     const listId = asNumberGuard(listIdStr)
 
     await listAccessGuard(userId, listId)
 
     return getListGroceries(listId)
+  })
+
+  app.post<{
+    Params: { listId: string }
+  }>('/lists/:listId/socket/subscribe', async ({ headers, params: { listId: listIdStr } }) => {
+    const userId = userIdFromTokenGuard(headers)
+    const listId = asNumberGuard(listIdStr)
+
+    await listAccessGuard(userId, listId)
+
+    for (const socket of io.of(`user-${userId}`).sockets.values()) {
+      await socket.join(`list-${listId}`)
+    }
+  })
+
+  app.post<{
+    Params: { listId: string }
+  }>('/lists/:listId/socket/unsubscribe', async ({ headers, params: { listId: listIdStr } }) => {
+    const userId = userIdFromTokenGuard(headers)
+    const listId = asNumberGuard(listIdStr)
+
+    await listAccessGuard(userId, listId)
+
+    for (const socket of io.of(`user-${userId}`).sockets.values()) {
+      await socket.leave(`list-${listId}`)
+    }
   })
 
   app.post<{
@@ -234,8 +218,7 @@ export const createService = async () => {
       }
     }
   }, async ({ headers, params: { listId: listIdStr }, body: { name } }) => {
-    const { sub } = authorizationGuard(headers)
-    const userId = asNumberGuard(sub)
+    const userId = userIdFromTokenGuard(headers)
     const listId = asNumberGuard(listIdStr)
 
     await listAccessGuard(userId, listId)
@@ -261,8 +244,7 @@ export const createService = async () => {
       }
     }
   }, async ({ headers, params: { listId: listIdStr, groceryId: groceryIdStr }, body: { name } }) => {
-    const { sub } = authorizationGuard(headers)
-    const userId = asNumberGuard(sub)
+    const userId = userIdFromTokenGuard(headers)
     const listId = asNumberGuard(listIdStr)
     const groceryId = asNumberGuard(groceryIdStr)
 
@@ -276,8 +258,7 @@ export const createService = async () => {
   app.get<{
     Params: { listId: string, groceryId: string },
   }>('/lists/:listId/groceries/:groceryId', async ({ headers, params: { listId: listIdStr, groceryId: groceryIdStr } }) => {
-    const { sub } = authorizationGuard(headers)
-    const userId = asNumberGuard(sub)
+    const userId = userIdFromTokenGuard(headers)
     const listId = asNumberGuard(listIdStr)
     const groceryId = asNumberGuard(groceryIdStr)
 
@@ -289,8 +270,7 @@ export const createService = async () => {
   app.delete<{
     Params: { listId: string, groceryId: string }
   }>('/lists/:listId/groceries/:groceryId', async ({ headers, params: { listId: listIdStr, groceryId: groceryIdStr } }) => {
-    const { sub } = authorizationGuard(headers)
-    const userId = asNumberGuard(sub)
+    const userId = userIdFromTokenGuard(headers)
     const listId = asNumberGuard(listIdStr)
     const groceryId = asNumberGuard(groceryIdStr)
 
@@ -304,8 +284,7 @@ export const createService = async () => {
   app.post<{
     Params: { listId: string, groceryId: string }
   }>('/lists/:listId/groceries/:groceryId/to_shortages', async ({ headers, params: { listId: listIdStr, groceryId: groceryIdStr } }) => {
-    const { sub } = authorizationGuard(headers)
-    const userId = asNumberGuard(sub)
+    const userId = userIdFromTokenGuard(headers)
     const listId = asNumberGuard(listIdStr)
     const groceryId = asNumberGuard(groceryIdStr)
 
@@ -319,8 +298,7 @@ export const createService = async () => {
   app.post<{
     Params: { listId: string, groceryId: string }
   }>('/lists/:listId/groceries/:groceryId/from_shortages', async ({ headers, params: { listId: listIdStr, groceryId: groceryIdStr } }) => {
-    const { sub } = authorizationGuard(headers)
-    const userId = asNumberGuard(sub)
+    const userId = userIdFromTokenGuard(headers)
     const listId = asNumberGuard(listIdStr)
     const groceryId = asNumberGuard(groceryIdStr)
 
@@ -334,8 +312,7 @@ export const createService = async () => {
   app.get<{
     Params: { listId: string }
   }>('/lists/:listId/shortages', async ({ headers, params: { listId: listIdStr } }) => {
-    const { sub } = authorizationGuard(headers)
-    const userId = asNumberGuard(sub)
+    const userId = userIdFromTokenGuard(headers)
     const listId = asNumberGuard(listIdStr)
 
     await listAccessGuard(userId, listId)
@@ -346,8 +323,7 @@ export const createService = async () => {
   app.delete<{
     Params: { listId: string, shortageId: string }
   }>('/lists/:listId/shortages/:shortageId', async ({ headers, params: { listId: listIdStr, shortageId: shortageIdStr } }) => {
-    const { sub } = authorizationGuard(headers)
-    const userId = asNumberGuard(sub)
+    const userId = userIdFromTokenGuard(headers)
     const listId = asNumberGuard(listIdStr)
     const shortageId = asNumberGuard(shortageIdStr)
 
