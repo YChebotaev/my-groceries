@@ -56,6 +56,16 @@ export const createService = async () => {
 
         throw new Error('Cannot find user session by token in socket auth')
       }
+
+      await socket.join(`user-${userSession.userId}`)
+
+      socket.on('disconnect', async () => {
+        try {
+          await socket.leave(`user-${userSession.userId}`)
+        } catch (e) {
+          logger.error(e)
+        }
+      })
     } catch (e) {
       logger.error(e)
     }
